@@ -6,12 +6,16 @@ import (
 	"image/color/palette"
 	"image/png"
 	"log"
+	"math"
 	"math/cmplx"
 	"os"
 )
 
+const (
+	iterations = 200
+)
+
 func mandelbrotGreyscale(z complex128) color.Color {
-	const iterations = 200
 	const contrast = 15
 
 	var v complex128
@@ -25,7 +29,6 @@ func mandelbrotGreyscale(z complex128) color.Color {
 }
 
 func mandelbrotColored(z complex128) color.Color {
-	const iterations = 200
 	const contrast = 15
 
 	var v complex128
@@ -37,6 +40,42 @@ func mandelbrotColored(z complex128) color.Color {
 		}
 	}
 	return color.Black
+}
+
+func mandelbrotIterations(z complex128) int {
+	var v complex128
+	var n int
+
+	for n = 0; n < iterations; n++ {
+		v = v*v + z
+		if cmplx.Abs(v) > 2 {
+			return n + 1
+		}
+	}
+
+	return n
+}
+
+func antiAliasMB(z complex128, height int, width int) color.Color {
+	miny := complex(0, float64(1/(2*height)))
+	minx := complex(float64(1/(2*width)), 0)
+	total := 0
+
+	var sample [4]complex128
+	sample[0] = z - minx - miny
+	sample[1] = z - minx + miny
+	sample[2] = z + minx - miny
+	sample[3] = z + minx + miny
+
+	for _, i := range sample {
+		total += mandelbrotIterations(i)
+	}
+
+	tmp := int(math.Round(float64(total / len(sample))))
+	if tmp == iterations {
+		return color.Black
+	}
+	return palette.Plan9[uint8(tmp)]
 }
 
 func generateMandelbrot() string {
@@ -52,7 +91,8 @@ func generateMandelbrot() string {
 		for px := 0; px < width; px++ {
 			x := float64(px)/width*(xmax-xmin) + xmin
 			z := complex(x, y)
-			img.Set(px, py, mandelbrotColored(z))
+			//img.Set(px, py, mandelbrotColored(z))
+			img.Set(px, py, antiAliasMB(z, height, width))
 		}
 	}
 
